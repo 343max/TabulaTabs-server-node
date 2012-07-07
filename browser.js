@@ -3,7 +3,7 @@ var BrowserSchema = new mongoose.Schema({
     iv: { type: String, required: true},
     encrypted_password: { type: String},
     salt: { type: String},
-    usersagent: { type: String, required: true},
+    useragent: { type: String, required: true},
     modified: { type: Date, default: Date.now }
 });
 
@@ -70,8 +70,9 @@ browserAuth = express.basicAuth(function(username, password, next) {
 });
 
 app.post('/browsers.json', function(req, res) {
+    console.dir(req.body);
     var browser = new BrowserModel({
-        usersagent: req.body.useragent,
+        useragent: req.body.useragent,
         iv: req.body.iv,
         ic: req.body.ic
     });
@@ -82,12 +83,19 @@ app.post('/browsers.json', function(req, res) {
 
 app.get('/browsers.json', browserAuth, function(req, res) {
     res.send({
-        usersagent: req.remoteUser.useragent,
+        id: req.remoteUser._id,
+        useragent: req.remoteUser.useragent,
         iv: req.remoteUser.iv,
         ic: req.remoteUser.ic
     });
 });
 
+app.post('/browsers/update.json', browserAuth, function(req, res) {
+    req.remoteUser.iv = req.body.iv;
+    req.remoteUser.ic = req.body.ic;
+    req.remoteUser.save();
+    res.send({ success: true });
+});
 
 
 
