@@ -32,23 +32,22 @@ BrowserSchema.statics.authenticatedBrowser = function(username, password, next) 
         next(new Error('invalid username'));
     };
 
-    return this.model('Browser').findById(username.replace(/^b_/), function(err, browser) {
+    return this.model('Browser').findById(username.replace(/^b_/, ''), function(err, browser) {
+        if (!browser) {
+            next(new Error('invalid username or password'));
+            return;            
+        };
+
         var crypto = require('crypto');
         var shasum = crypto.createHash('sha256');
         shasum.update(password + '#' + browser.salt);
         if (browser.encrypted_password != shasum.digest('hex')) {
             next(new Error('invalid username or password'));
         } else {
-            next(browser);
+            next(null, browser);
         }
 
     });
-};
-
-function loadBrowser(req, next) {
-    if(req.isAuthenticated()) {
-
-    }
 };
 
 BrowserSchema.methods.username = function() {
@@ -62,8 +61,13 @@ BrowserSchema.methods.hasPassword = function(password) {
 module.exports.BrowserSchema = BrowserSchema;
 
 BrowserModel = mongoose.model('Browser', BrowserSchema);
-
 module.exports.BrowserModel = BrowserModel;
+
+browserAuth = express.basicAuth(function(username, password, next) {
+    BrowserModel.authenticatedBrowser(username, password, function(err, browser) {
+        next(null, browser);
+    });
+});
 
 app.post('/browsers.json', function(req, res) {
     var browser = new BrowserModel({
@@ -72,10 +76,19 @@ app.post('/browsers.json', function(req, res) {
         ic: req.body.ic
     });
     browser.password = req.body.password;
-    console.dir(browser);
     browser.save();
     res.send({ username: browser.username(), id: browser.id });
 });
 
-app.get('/browsers.json', function(req, res) {
+app.get('/browsers.json', browserAuth, function(req, res) {
+    res.send({
+        usersagent: req.remoteUser.useragent,
+        iv: req.remoteUser.iv,
+        ic: req.remoteUser.ic
+    });
 });
+
+
+
+
+
