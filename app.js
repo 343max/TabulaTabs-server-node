@@ -1,9 +1,20 @@
 var application_root = __dirname,
-    express = require("express"),
-    path = require("path"),
-    mongoose = require("mongoose");
+    path = require("path");
+
+express = require("express"),
+mongoose = require("mongoose");
 require('express-namespace');
 
-var app = express.createServer().listen(4242);
+mongoose.connect('mongodb://localhost/tabulatabs');
+app = express.createServer().listen(4242);
 
-require('./hello.js').extend(app, express);
+app.configure(function() {
+    app.use(express.bodyParser());
+    app.use(express.methodOverride());
+    app.use(app.router);
+    app.use(express.static(path.join(application_root, 'public')));
+    app.use(express.errorHandler( { dumpExceptions: true, showStack: true} ));
+});
+
+require('./hello');
+var browser = require('./browser');
