@@ -70,6 +70,12 @@ BrowserSchema.statics.authenticatedBrowser = function(username, password, next) 
             return;            
         };
 
+        if (password.length != 32) {
+            console.log(password);
+            next(new Error('invalid username or password'));
+            return;
+        }
+
         if (browser.encrypted_password != encryptedPassword(password, browser.salt)) {
             next(new Error('invalid username or password'));
         } else {

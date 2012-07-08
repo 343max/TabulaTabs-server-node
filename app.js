@@ -52,7 +52,7 @@ app.post('/browsers.json', function(req, res) {
     });
 
     shortNames.generate(function(name) {
-        browser.uniquename = 'B_' + name;
+        browser.uniquename = 'B__' + name;
         browser.setPassword(req.body.password);
         browser.save(function(err) {
             if (err) {
@@ -98,7 +98,7 @@ app.post('/browsers/clients.json', browserAuth, function(req, res) {
 
     var client = new Client.Model();
     shortNames.generate(function(name) {
-        client.uniquename = 'C_' + name;
+        client.uniquename = 'C__' + name;
         client.setPassword(req.body.password);
 
         browser.clients.push(client);
