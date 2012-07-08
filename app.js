@@ -56,7 +56,6 @@ app.post('/browsers.json', function(req, res) {
         browser.setPassword(req.body.password);
         browser.save(function(err) {
             if (err) {
-                console.dir(browser);
                 throw err;
             }
 
@@ -137,7 +136,8 @@ app.put('/browsers/clients/claim.json', clientAuth, function(req, res) {
         }
 
         res.send({
-            id: client.id
+            success: true,
+            id: client.uniquename
         });
     });
 });
@@ -182,7 +182,7 @@ app.delete('/browsers/clients/:clientId.json', browserAuth, function(req, res) {
 });
 
 // save browser tabs
-app.post('/browsers/tabs/', browserAuth, function(req, res) {
+var postTabs = function(req, res) {
     var browser = req.remoteUser;
 
     browser.tabs = _.map(req.body, function(data) {
@@ -202,7 +202,10 @@ app.post('/browsers/tabs/', browserAuth, function(req, res) {
 
         res.send({ success: true });
     });
-});
+};
+
+app.post('/browsers/tabs/', browserAuth, postTabs);
+app.post('/browsers/tabs.json', browserAuth, postTabs);
 
 // get all tabs
 app.get('/browsers/tabs.json', clientAuth, function(req, res) {
