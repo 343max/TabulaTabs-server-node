@@ -4,11 +4,13 @@ var application_root = __dirname,
 express = require("express"),
 mongoose = require("mongoose");
 require('express-namespace');
+_ = require('underscore');
 
 mongoose.connect('mongodb://localhost/tabulatabs');
 app = express.createServer().listen(4242);
 
 app.configure(function() {
+    app.use(express.logger());
     app.use(express.bodyParser());
     app.use(express.methodOverride());
     app.use(app.router);
@@ -32,17 +34,19 @@ clientAuth = express.basicAuth(function(username, password, next) {
     });
 })
 
+// create browser
 app.post('/browsers.json', function(req, res) {
-    var browser = new BrowserModel({
+    var browser = new Browser.Model({
         useragent: req.body.useragent,
         iv: req.body.iv,
         ic: req.body.ic
     });
-    browser.password = req.body.password;
+    browser.setPassword(req.body.password);
     browser.save();
     res.send({ username: browser.username(), id: browser.id });
 });
 
+// load browser info
 app.get('/browsers.json', browserAuth, function(req, res) {
     res.send({
         id: req.remoteUser._id,
@@ -52,18 +56,21 @@ app.get('/browsers.json', browserAuth, function(req, res) {
     });
 });
 
+// modify existing browser
 app.post('/browsers/update.json', browserAuth, function(req, res) {
-    req.remoteUser.iv = req.body.iv;
-    req.remoteUser.ic = req.body.ic;
-    req.remoteUser.save();
+    var browser = req.remoteUser;
+    browser.iv = req.body.iv;
+    browser.ic = req.body.ic;
+    browser.save();
     res.send({ success: true });
 });
 
+// create unclaimed client
 app.post('/browsers/clients.json', browserAuth, function(req, res) {
     var browser = req.remoteUser;
 
     var client = new Client.Model();
-    client.password = req.body.password;
+    client.setPassword(req.body.password);
 
     browser.clients.push(client);
     browser.save();
@@ -74,6 +81,7 @@ app.post('/browsers/clients.json', browserAuth, function(req, res) {
     });
 });
 
+// claim unclaimed client
 app.put('/browsers/clients/claim.json', clientAuth, function(req, res) {
     var browser = req.remoteUser;
     var client = browser.currentClient;
@@ -85,8 +93,9 @@ app.put('/browsers/clients/claim.json', clientAuth, function(req, res) {
     client.iv = req.body.iv;
     client.ic = req.body.ic;
     client.useragent = req.body.useragent;
-    client.password = req.body.password;
+    client.setPassword(req.body.password);
     client.claimed = true;
+    client.updateAccessTime();
 
     browser.save();
 
@@ -95,5 +104,22 @@ app.put('/browsers/clients/claim.json', clientAuth, function(req, res) {
 	});
 });
 
+// get a list of all claimed clients of an browser
+app.get('/browsers/clients.json', browserAuth, function(req, res) {
+    var clients = [];
 
+    _.each(req.remoteUser.clients, function(client) {
+        if (client.claimed) {
+            clients.push({
+                id: client._id,
+                useragent: client.useragent,
+                iv: client.iv,
+                ic: client.ic,
+                accessed_at: client.accessed
+            });
+        }
+    });
+
+    res.send(clients);
+});
 

@@ -1,12 +1,12 @@
 var BrowserSchema = new mongoose.Schema({
     ic: { type: String, required: true},
     iv: { type: String, required: true},
-    encrypted_password: { type: String},
-    salt: { type: String},
+    encrypted_password: { type: String, required: true},
+    salt: { type: String, required: true},
     useragent: { type: String, required: true},
     created: { type: Date },
     modified: { type: Date, default: Date.now },
-    clients: [Client.schema]
+    clients: [Client.Schema]
 });
 
 BrowserSchema.pre('init', function(next) {
@@ -23,16 +23,16 @@ function encryptedPassword(password, salt) {
 
 module.exports.encryptedPassword = encryptedPassword;
 
+BrowserSchema.methods.setPassword = function(password) {
+    var crypto = require('crypto');
+    var salt = crypto.createHash('sha256');
+    salt.update(crypto.randomBytes(16));
+    this.salt = salt.digest('hex');
+
+    this.encrypted_password = encryptedPassword(password, this.salt);
+}
+
 BrowserSchema.pre('save', function(next) {
-    if (this.password) {
-        var crypto = require('crypto');
-        var salt = crypto.createHash('sha256');
-        salt.update(crypto.randomBytes(16));
-        this.salt = salt.digest('hex');
-
-        this.encrypted_password = encryptedPassword(this.password, this.salt);
-    }
-
     for (var i = 0; i < this.clients.length; i++) {
         var client = this.clients[i];
         var error = Client.Model.validate(client);
@@ -42,11 +42,7 @@ BrowserSchema.pre('save', function(next) {
         };
     };
 
-    if (!this.encrypted_password) {
-        next(new Error('no password'));
-    } else {
-        next();
-    }
+    next();
 });
 
 BrowserSchema.statics.authenticatedBrowser = function(username, password, next) {
@@ -75,17 +71,14 @@ BrowserSchema.statics.authenticatedClient = function(username, password, next) {
     };
 
     var clientId = username.replace(/^c_/, '');
-    return this.model('Browser').findOne({ 'clients._id': mongoose.Types.ObjectId(clientId) }, function(err, browser) {
+
+    return BrowserModel.findOne({ 'clients._id': mongoose.Types.ObjectId(clientId) }, function(err, browser) {
         if (!browser) {
             next(new Error('invalid username or password'));
-            return;            
+            return;
         };
 
-        for (var i = 0; i < browser.clients.length; i++) {
-            if (browser.clients[i]._id == clientId) {
-                browser.currentClient = browser.clients[i];
-            }
-        }
+        browser.currentClient = browser.clients.id(clientId);
 
         if (browser.currentClient.encrypted_password != encryptedPassword(password, browser.currentClient.salt)) {
             next(new Error('invalid username or password'));
