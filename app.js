@@ -19,7 +19,7 @@ app.configure(function() {
 });
 
 // dirty hack to work with clients with invalid request content-types.
-//express.bodyParser.parse['application/x-www-form-urlencoded'] = express.bodyParser.parse['application/json'];
+express.bodyParser.parse['application/x-www-form-urlencoded'] = express.bodyParser.parse['application/json'];
 
 require('./hello');
 shortNames = require('./shortnames').shortNames('usernames', mongoose);
