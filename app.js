@@ -18,17 +18,22 @@ app.configure(function() {
     app.use(express.errorHandler( { dumpExceptions: true, showStack: true} ));
 });
 
-// dirty hack to works with clients with invalid request content-types.
+// dirty hack to work with clients with invalid request content-types.
 //express.bodyParser.parse['application/x-www-form-urlencoded'] = express.bodyParser.parse['application/json'];
 
 require('./hello');
+shortNames = require('./shortnames').shortNames('usernames', mongoose);
+
 Tab = require('./tab');
 Client = require('./client');
 Browser = require('./browser');
 
 browserAuth = express.basicAuth(function(username, password, next) {
     BrowserModel.authenticatedBrowser(username, password, function(err, browser) {
-        next(null, browser);
+        if (err) {
+            throw err;
+        }
+        next(err, browser);
     });
 });
 
@@ -45,9 +50,22 @@ app.post('/browsers.json', function(req, res) {
         iv: req.body.iv,
         ic: req.body.ic
     });
-    browser.setPassword(req.body.password);
-    browser.save();
-    res.send({ username: browser.username(), id: browser.id });
+
+    shortNames.generate(function(name) {
+        browser.uniquename = 'B_' + name;
+        browser.setPassword(req.body.password);
+        browser.save(function(err) {
+            if (err) {
+                console.dir(browser);
+                throw err;
+            }
+
+            res.send({
+                username: browser.uniquename,
+                id: browser.id
+            });
+        });
+    });
 });
 
 // load browser info
@@ -65,8 +83,13 @@ app.post('/browsers/update.json', browserAuth, function(req, res) {
     var browser = req.remoteUser;
     browser.iv = req.body.iv;
     browser.ic = req.body.ic;
-    browser.save();
-    res.send({ success: true });
+    browser.save(function(err) {
+        if (err) {
+            throw err;
+        }
+
+        res.send({ success: true });
+    });
 });
 
 // create unclaimed client
@@ -74,14 +97,21 @@ app.post('/browsers/clients.json', browserAuth, function(req, res) {
     var browser = req.remoteUser;
 
     var client = new Client.Model();
-    client.setPassword(req.body.password);
+    shortNames.generate(function(name) {
+        client.uniquename = 'C_' + name;
+        client.setPassword(req.body.password);
 
-    browser.clients.push(client);
-    browser.save();
+        browser.clients.push(client);
+        browser.save(function(err) {
+            if (err) {
+                throw err;
+            }
 
-    res.send({
-        username: client.username(),
-        client_id: client._id
+            res.send({
+                username: client.uniquename,
+                client_id: client._id
+            });
+        });
     });
 });
 
@@ -101,11 +131,15 @@ app.put('/browsers/clients/claim.json', clientAuth, function(req, res) {
     client.claimed = true;
     client.updateAccessTime();
 
-    browser.save();
+    browser.save(function(err) {
+        if (err) {
+            throw err;
+        }
 
-	res.send({
-		id: client.id
-	});
+        res.send({
+            id: client.id
+        });
+    });
 });
 
 // get a list of all claimed clients of an browser
@@ -138,9 +172,13 @@ app.delete('/browsers/clients/:clientId.json', browserAuth, function(req, res) {
     }
 
     client.remove();
-    browser.save();
+    browser.save(function(err) {
+        if (err) {
+            throw err;
+        }
 
-    res.send({ success: true });
+        res.send({ success: true });
+    });
 });
 
 // save browser tabs
@@ -157,8 +195,13 @@ app.post('/browsers/tabs/', browserAuth, function(req, res) {
         return tab;
     });
 
-    browser.save();
-    res.send({ success: true });
+    browser.save(function(err) {
+        if (err) {
+            throw err;
+        }
+
+        res.send({ success: true });
+    });
 });
 
 // get all tabs
@@ -189,6 +232,11 @@ app.put('/browsers/tabs/update', browserAuth, function(req, res) {
         }
     });
 
-    browser.save();
-    res.send({ success: true });
+    browser.save(function(err) {
+        if (err) {
+            throw err;
+        }
+
+        res.send({ success: true });
+    });
 });

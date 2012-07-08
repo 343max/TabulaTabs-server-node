@@ -1,4 +1,5 @@
 var ClientSchema = new mongoose.Schema({
+    uniquename: { type: String, required: true },
     ic: { type: String },
     iv: { type: String },
     encrypted_password: { type: String, required: true },
