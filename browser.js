@@ -49,8 +49,10 @@ BrowserSchema.methods.setPassword = function(password) {
     this.encrypted_password = encryptedPassword(password, this.salt);
 }
 
-BrowserSchema.methods.clientWithId = function(id) {
-    return this.clients.id(id);
+BrowserSchema.methods.clientWithUniquename = function(uniquename) {
+    return _.find(this.clients, function(client) {
+       return client.uniquename == uniquename;
+    });
 }
 
 BrowserSchema.methods.tabWithIdentifier = function(identifier) {
@@ -60,8 +62,9 @@ BrowserSchema.methods.tabWithIdentifier = function(identifier) {
 }
 
 BrowserSchema.statics.authenticatedBrowser = function(username, password, next) {
-    if (!username.match(/^(b_|B_)/)) {
+    if (!username.match(/^(b_|B__)/)) {
         next(new Error('invalid username'));
+        return;
     };
 
     return this.model('Browser').findOne({ uniquename: username}, function(err, browser) {
@@ -71,23 +74,23 @@ BrowserSchema.statics.authenticatedBrowser = function(username, password, next) 
         };
 
         if (password.length != 32) {
-            console.log(password);
             next(new Error('invalid username or password'));
             return;
         }
 
         if (browser.encrypted_password != encryptedPassword(password, browser.salt)) {
             next(new Error('invalid username or password'));
-        } else {
-            next(null, browser);
+            return;
         }
 
+        next(null, browser);
     });
 };
 
 BrowserSchema.statics.authenticatedClient = function(username, password, next) {
-    if (!username.match(/^(c_|C_)/)) {
+    if (!username.match(/^(c_|C__)/)) {
         next(new Error('invalid username'));
+        return;
     };
 
     return BrowserModel.findOne({ 'clients.uniquename':username }, function(err, browser) {
@@ -100,12 +103,18 @@ BrowserSchema.statics.authenticatedClient = function(username, password, next) {
             return client.uniquename == username;
         });
 
-        if (browser.currentClient.encrypted_password != encryptedPassword(password, browser.currentClient.salt)) {
+        if (password.length != 32) {
             next(new Error('invalid username or password'));
-        } else {
-            next(null, browser);
+            return;
         }
 
+        if (browser.currentClient.encrypted_password != encryptedPassword(password, browser.currentClient.salt)) {
+            next(new Error('invalid username or password'));
+            return
+        }
+
+
+        next(null, browser);
     });
 }
 

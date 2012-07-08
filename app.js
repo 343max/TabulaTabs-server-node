@@ -39,9 +39,27 @@ browserAuth = express.basicAuth(function(username, password, next) {
 
 clientAuth = express.basicAuth(function(username, password, next) {
     BrowserModel.authenticatedClient(username, password, function(err, browser) {
-        next(null, browser);
+        if (err) {
+            throw err;
+        }
+        next(err, browser);
     });
 })
+
+browserOrClientAuth = express.basicAuth(function(username, password, next) {
+    BrowserModel.authenticatedBrowser(username, password, function(err, browser) {
+       if (browser) {
+           next(err, browser);
+       } else {
+           BrowserModel.authenticatedClient(username, password, function(err, browser) {
+               if (err) {
+                   throw err;
+               }
+               next(err, browser);
+           });
+       }
+    });
+});
 
 // create browser
 app.post('/browsers.json', function(req, res) {
@@ -68,7 +86,7 @@ app.post('/browsers.json', function(req, res) {
 });
 
 // load browser info
-app.get('/browsers.json', browserAuth, function(req, res) {
+app.get('/browsers.json', browserOrClientAuth, function(req, res) {
     res.send({
         id: req.remoteUser._id,
         useragent: req.remoteUser.useragent,
@@ -149,7 +167,7 @@ app.get('/browsers/clients.json', browserAuth, function(req, res) {
     _.each(req.remoteUser.clients, function(client) {
         if (client.claimed) {
             clients.push({
-                id: client._id,
+                id: client.uniquename,
                 useragent: client.useragent,
                 iv: client.iv,
                 ic: client.ic,
@@ -165,7 +183,7 @@ app.get('/browsers/clients.json', browserAuth, function(req, res) {
 app.delete('/browsers/clients/:clientId.json', browserAuth, function(req, res) {
     var browser = req.remoteUser;
 
-    var client = browser.clientWithId(req.params.clientId);
+    var client = browser.clientWithUniquename(req.params.clientId);
 
     if(!client) {
         throw new Error('client does not exists');
