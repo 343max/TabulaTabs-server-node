@@ -23,15 +23,18 @@ module.exports.shortNames = function(identifier, mongoogse) {
         return name;
     }
 
+    Model.findOne({ identifier: identifier }, function(err, doc) {
+        if (!doc) {
+            doc = new Model({
+                identifier: identifier
+            }).save();
+        }
+    })
+
     var shortName = {
         forNumber: forNumber,
         generate: function(next) {
             Model.findAndModify({ identifier: identifier }, [], { $inc: { next: 1 } }, { new: true }, function (err, doc) {
-                if (!doc) {
-                    doc = new Model({
-                        identifier: identifier
-                    }).save();
-                }
                 if (err) throw err;
                 next(forNumber(doc.next));
             });
