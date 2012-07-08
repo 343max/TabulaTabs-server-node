@@ -18,7 +18,11 @@ app.configure(function() {
     app.use(express.errorHandler( { dumpExceptions: true, showStack: true} ));
 });
 
+// dirty hack to works with clients with invalid request content-types.
+//express.bodyParser.parse['application/x-www-form-urlencoded'] = express.bodyParser.parse['application/json'];
+
 require('./hello');
+Tab = require('./tab');
 Client = require('./client');
 Browser = require('./browser');
 
@@ -123,3 +127,68 @@ app.get('/browsers/clients.json', browserAuth, function(req, res) {
     res.send(clients);
 });
 
+// delete a client
+app.delete('/browsers/clients/:clientId.json', browserAuth, function(req, res) {
+    var browser = req.remoteUser;
+
+    var client = browser.clientWithId(req.params.clientId);
+
+    if(!client) {
+        throw new Error('client does not exists');
+    }
+
+    client.remove();
+    browser.save();
+
+    res.send({ success: true });
+});
+
+// save browser tabs
+app.post('/browsers/tabs/', browserAuth, function(req, res) {
+    var browser = req.remoteUser;
+
+    browser.tabs = _.map(req.body, function(data) {
+        var tab = new Tab.Model({
+            identifier: data.identifier,
+            iv: data.iv,
+            ic: data.ic
+        });
+
+        return tab;
+    });
+
+    browser.save();
+    res.send({ success: true });
+});
+
+// get all tabs
+app.get('/browsers/tabs.json', clientAuth, function(req, res) {
+    var browser = req.remoteUser;
+
+    res.send(_.map(browser.tabs, function(tab) {
+        return {
+            identifier: tab.identifier,
+            iv: tab.iv,
+            ic: tab.ic
+        };
+    }));
+
+    browser.currentClient.updateAccessTime();
+});
+
+// update some tabs
+app.put('/browsers/tabs/update', browserAuth, function(req, res) {
+    var browser = req.remoteUser;
+
+    _.each(req.body, function(update) {
+        var tab = browser.tabWithIdentifier(update.identifier);
+
+        if (tab) {
+            tab.iv = update.iv;
+            tab.ic = update.ic;
+        }
+    });
+
+    browser.save();
+    res.send({ success: true });
+});

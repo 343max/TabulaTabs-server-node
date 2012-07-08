@@ -6,7 +6,8 @@ var BrowserSchema = new mongoose.Schema({
     useragent: { type: String, required: true},
     created: { type: Date },
     modified: { type: Date, default: Date.now },
-    clients: [Client.Schema]
+    clients: [Client.Schema],
+    tabs: [Tab.Schema]
 });
 
 BrowserSchema.pre('init', function(next) {
@@ -30,6 +31,16 @@ BrowserSchema.methods.setPassword = function(password) {
     this.salt = salt.digest('hex');
 
     this.encrypted_password = encryptedPassword(password, this.salt);
+}
+
+BrowserSchema.methods.clientWithId = function(id) {
+    return this.clients.id(id);
+}
+
+BrowserSchema.methods.tabWithIdentifier = function(identifier) {
+    return _.find(this.tabs, function(tab) {
+        return tab.identifier == identifier;
+    });
 }
 
 BrowserSchema.pre('save', function(next) {
