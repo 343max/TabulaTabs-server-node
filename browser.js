@@ -4,8 +4,24 @@ var BrowserSchema = new mongoose.Schema({
     encrypted_password: { type: String},
     salt: { type: String},
     useragent: { type: String, required: true},
-    modified: { type: Date, default: Date.now }
+    created: { type: Date },
+    modified: { type: Date, default: Date.now },
+    clients: [Client.schema]
 });
+
+BrowserSchema.pre('init', function(next) {
+    this.created = Date.now();
+    next();
+});
+
+function encryptedPassword(password, salt) {
+    var shasum = require('crypto').createHash('sha256');
+    shasum.update(password + '#' + salt);
+    var hex = shasum.digest('hex');
+    return hex;
+}
+
+module.exports.encryptedPassword = encryptedPassword;
 
 BrowserSchema.pre('save', function(next) {
     if (this.password) {
@@ -14,11 +30,17 @@ BrowserSchema.pre('save', function(next) {
         salt.update(crypto.randomBytes(16));
         this.salt = salt.digest('hex');
 
-        var shasum = crypto.createHash('sha256');
-        shasum.update(this.password + '#' + this.salt);
-        this.encrypted_password = shasum.digest('hex');
-        this.passsword = undefined;
+        this.encrypted_password = encryptedPassword(this.password, this.salt);
     }
+
+    for (var i = 0; i < this.clients.length; i++) {
+        var client = this.clients[i];
+        var error = Client.Model.validate(client);
+        if (error) {
+            next(error);
+            return;
+        };
+    };
 
     if (!this.encrypted_password) {
         next(new Error('no password'));
@@ -38,10 +60,7 @@ BrowserSchema.statics.authenticatedBrowser = function(username, password, next) 
             return;            
         };
 
-        var crypto = require('crypto');
-        var shasum = crypto.createHash('sha256');
-        shasum.update(password + '#' + browser.salt);
-        if (browser.encrypted_password != shasum.digest('hex')) {
+        if (browser.encrypted_password != encryptedPassword(password, browser.salt)) {
             next(new Error('invalid username or password'));
         } else {
             next(null, browser);
@@ -50,53 +69,38 @@ BrowserSchema.statics.authenticatedBrowser = function(username, password, next) 
     });
 };
 
+BrowserSchema.statics.authenticatedClient = function(username, password, next) {
+    if (!username.match(/^c_/)) {
+        next(new Error('invalid username'));
+    };
+
+    var clientId = username.replace(/^c_/, '');
+    return this.model('Browser').findOne({ 'clients._id': mongoose.Types.ObjectId(clientId) }, function(err, browser) {
+        if (!browser) {
+            next(new Error('invalid username or password'));
+            return;            
+        };
+
+        for (var i = 0; i < browser.clients.length; i++) {
+            if (browser.clients[i]._id == clientId) {
+                browser.currentClient = browser.clients[i];
+            }
+        }
+
+        if (browser.currentClient.encrypted_password != encryptedPassword(password, browser.currentClient.salt)) {
+            next(new Error('invalid username or password'));
+        } else {
+            next(null, browser);
+        }
+
+    });
+}
+
 BrowserSchema.methods.username = function() {
     return 'b_' + this.id;
 };
 
-BrowserSchema.methods.hasPassword = function(password) {
-
-};
-
-module.exports.BrowserSchema = BrowserSchema;
+module.exports.Schema = BrowserSchema;
 
 BrowserModel = mongoose.model('Browser', BrowserSchema);
-module.exports.BrowserModel = BrowserModel;
-
-browserAuth = express.basicAuth(function(username, password, next) {
-    BrowserModel.authenticatedBrowser(username, password, function(err, browser) {
-        next(null, browser);
-    });
-});
-
-app.post('/browsers.json', function(req, res) {
-    console.dir(req.body);
-    var browser = new BrowserModel({
-        useragent: req.body.useragent,
-        iv: req.body.iv,
-        ic: req.body.ic
-    });
-    browser.password = req.body.password;
-    browser.save();
-    res.send({ username: browser.username(), id: browser.id });
-});
-
-app.get('/browsers.json', browserAuth, function(req, res) {
-    res.send({
-        id: req.remoteUser._id,
-        useragent: req.remoteUser.useragent,
-        iv: req.remoteUser.iv,
-        ic: req.remoteUser.ic
-    });
-});
-
-app.post('/browsers/update.json', browserAuth, function(req, res) {
-    req.remoteUser.iv = req.body.iv;
-    req.remoteUser.ic = req.body.ic;
-    req.remoteUser.save();
-    res.send({ success: true });
-});
-
-
-
-
+module.exports.Model = BrowserModel;
