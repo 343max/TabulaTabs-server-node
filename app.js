@@ -6,6 +6,8 @@ mongoose = require("mongoose");
 require('express-namespace');
 _ = require('underscore');
 
+nodeEnvironment = process.env.NODE_ENV || 'development';
+
 mongoose.connect('mongodb://localhost/tabulatabs');
 app = express.createServer().listen(4242);
 
@@ -15,7 +17,14 @@ app.configure(function() {
     app.use(express.methodOverride());
     app.use(app.router);
     app.use(express.static(path.join(application_root, 'public')));
+});
+
+app.configure('development', function() {
     app.use(express.errorHandler( { dumpExceptions: true, showStack: true} ));
+})
+
+app.configure('production', function(){
+    app.use(express.errorHandler());
 });
 
 // dirty hack to work with clients with invalid request content-types.
