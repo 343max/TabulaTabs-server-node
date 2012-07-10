@@ -1,7 +1,7 @@
 app.namespace('/hello', function() {
     
     app.get('/hello.json', function(req, res) {
-        res.send({ 'greeted': 'Hello World!' });
+        res.send({ 'greeted': 'Hello World!', version: 2 });
     });
 
     var basicAuth = express.basicAuth('Tester', 'greets');
