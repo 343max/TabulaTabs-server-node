@@ -38,12 +38,28 @@ function getRequest(getURL, username, password, callback) {
 module.exports = {
 
     verifyCredentials: function(username, password, callback) {
-        var options = url.parse(getURL);
+        var options = url.parse(apiv0url + '/browsers/tabs.json');
         options.auth = username + ':' + password;
         var req = https.get(options, function(res) {
             req.end();
-            callback(res.status == 200);
+            callback(res.statusCode == 200);
         });
+    },
+
+    verifyBrowserCredentials: function(username, password, callback) {
+        if (!this.isBrowserUsername(username)) {
+            callback(false);
+        } else {
+            this.verifyCredentials(username, password, callback);
+        }
+    },
+
+    verifyClientCredentials: function(username, password, callback) {
+        if (!this.isClientUsername(username)) {
+            callback(false);
+        } else {
+            this.verifyCredentials(username, password, callback);
+        }
     },
 
     isBrowserUsername: function(username) {
@@ -82,7 +98,8 @@ module.exports = {
                 iv: details.iv,
                 ic: details.ic,
                 useragent: details.useragent,
-                encrypted_password: '_'
+                encrypted_password: '_',
+                salt: '_'
             });
 
             browser.clients = _.map(clients, function(client) {
@@ -93,7 +110,8 @@ module.exports = {
                     ic: client.ic,
                     useragent: client.useragent,
                     accessed: client.accessed_at,
-                    encrypted_password: '_'
+                    encrypted_password: '_',
+                    salt: '_'
                 });
             });
 
@@ -111,7 +129,8 @@ module.exports = {
                 var client = browser.client(username);
 
                 if (client) {
-                    client.setPassword(client);
+                    client.setPassword(password);
+                    browser.currentClient = client;
                 } else {
                     throw new Error('client was correctly authorized but could not be found in the imported browser');
                 }
@@ -123,8 +142,6 @@ module.exports = {
         }
 
         this.importTabs(username, password, function(err, loadedTabs) {
-            if (err) throw err;
-
             completedRequests++;
             tabs = loadedTabs;
 
@@ -132,8 +149,6 @@ module.exports = {
         });
 
         this.importBrowserDetails(username, password, function(err, loadedDetails) {
-            if (err) throw err;
-
             completedRequests++;
             details = loadedDetails;
 
@@ -141,8 +156,6 @@ module.exports = {
         });
 
         this.importClients(username, password, function(err, loadedClients) {
-            if (err) throw err;
-
             completedRequests++;
             clients = loadedClients;
 

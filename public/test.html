@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+        <title>Tabulatabs js client test</title>
+        <link rel="stylesheet" href="http://code.jquery.com/qunit/qunit-1.2.0.css" >
+        <script src="js/base64.js"></script>
+        <script src="js/gibberish-aes.js"></script>
+        <script src="js/jquery-1.7.2.min.js"></script>
+        <script src="js/webtoolkit.sha1.js"></script>
+        <script src="js/findMetaInPageTitle.js"></script>
+        <script src="js/tabulatabs-client.js"></script>
+        <script src="js/tabulatabs-encryption.js"></script>
+        <script src="js/tabulatabs-browser.js"></script>
+        <script src="js/qunit-1.2.0.js"></script>
+    </head>
+    <body>
+
+
+  <h1 id="qunit-header">Tabulatabs JS Client</h1>
+  <h2 id="qunit-banner"></h2>
+  <ol id="qunit-tests"></ol>
+<script>
+
+// tabulatabsServerPath = 'http://78.47.67.78:4242/';
+tabulatabsServerPath = '/';
+
+function testBrowser() {
+    var browser = new TabulatabsBrowser();
+    browser.useragent = 'Test - JavaScript Test Browser - ' + navigator.userAgent;
+    browser.label = 'Unit Testing Fake Browser';
+    browser.description = 'If you can see this there is some kind of bug';
+    browser.iconURL = 'chrome.png';
+		browser.useragent = 'Test - JavaScript Test Browser - Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_0) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/22.0.1203.0 Safari/537.1';
+    return browser;
+}
+
+var encryptionHexKey = '9fd47362c19c939c9e710af139c98b6872c9f7244b156a2a098d9e0cfbfe07b7';
+
+var browserUsername = 'b_1967';
+var browserPassword = '1bf71186b12be490bc8c6317fc37dd97';
+
+var clientUsername = 'c_3156';
+var clientPassword = '6a8c78d810631cd957d78a4297689db7';
+
+test('client-browser', function() {
+	stop();
+
+	$.get(tabulatabsServerPath + 'reset', function() {
+		var encryption = new TabulatabsEncryption(encryptionHexKey);
+		var client = new TabulatabsClient(encryption);
+		client.username = clientUsername;
+		client.password = clientPassword;
+
+		client.loadTabs(function() {
+			equal(client.tabs[0].URL, 'http://tabulatabs.com/', 'tabs correctly restored');
+			client.loadTabs(function() {
+				equal(client.tabs[0].URL, 'http://tabulatabs.com/', 'tabs correctly restored');
+				var browser = new TabulatabsBrowser(encryption);
+				browser.username = browserUsername;
+				browser.password = browserPassword;
+
+				browser.load(function(result) {
+					equal(browser.useragent, testBrowser().useragent, 'Useragent correctly saved');
+					browser.load(function(result) {
+						equal(browser.useragent, testBrowser().useragent, 'Useragent correctly saved');
+						start();
+					});
+				});
+			});
+		});
+	});
+});
+
+test('browser-client', function() {
+	stop();
+
+	$.get(tabulatabsServerPath + 'reset', function() {
+		var encryption = new TabulatabsEncryption(encryptionHexKey);
+		var browser = new TabulatabsBrowser(encryption);
+		browser.username = browserUsername;
+		browser.password = browserPassword;
+
+		browser.load(function(result) {
+			equal(browser.useragent, testBrowser().useragent, 'Useragent correctly saved');
+
+			browser.load(function(result) {
+				equal(browser.useragent, testBrowser().useragent, 'Useragent correctly saved');
+				var client = new TabulatabsClient(encryption);
+				client.username = clientUsername;
+				client.password = clientPassword;
+
+				client.loadTabs(function() {
+					equal(client.tabs[0].URL, 'http://tabulatabs.com/', 'tabs correctly restored');
+					client.loadTabs(function() {
+						equal(client.tabs[0].URL, 'http://tabulatabs.com/', 'tabs correctly restored');
+						start();
+					});
+				});
+			});
+		});
+	});
+});
+
+
+</script>
+
+    </body>
+</html>

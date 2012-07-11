@@ -37,38 +37,47 @@ Tab = require('./tab');
 Client = require('./client');
 Browser = require('./browser');
 
-browserAuth = express.basicAuth(function(username, password, next) {
+/*
+express.basicAuth has problems with base64 encoded strings of some lengths.
+fixAuth works around this problem in a dirty way.
+ */
+function fixAuth(auth) {
+    return function(req, res, next) {
+        req.headers.authorization += '======';
+        return auth(req, res, next);
+    }
+}
+
+browserAuth = fixAuth(express.basicAuth(function(username, password, next) {
     BrowserModel.authenticatedBrowser(username, password, function(err, browser) {
-        if (err) {
-            throw err;
-        }
         next(err, browser);
     });
-});
+}));
 
-clientAuth = express.basicAuth(function(username, password, next) {
+
+clientAuth = fixAuth(express.basicAuth(function(username, password, next) {
     BrowserModel.authenticatedClient(username, password, function(err, browser) {
-        if (err) {
-            throw err;
-        }
         next(err, browser);
     });
-})
+}));
 
-browserOrClientAuth = express.basicAuth(function(username, password, next) {
+browserOrClientAuth = fixAuth(express.basicAuth(function(username, password, next) {
     BrowserModel.authenticatedBrowser(username, password, function(err, browser) {
        if (browser) {
            next(err, browser);
        } else {
            BrowserModel.authenticatedClient(username, password, function(err, browser) {
                if (err) {
-                   throw err;
+                   next(err);
+               } else {
+                   next(null, browser);
                }
-               next(err, browser);
            });
        }
     });
-});
+}));
+
+
 
 // create browser
 app.post('/browsers.json', function(req, res) {
@@ -93,6 +102,17 @@ app.post('/browsers.json', function(req, res) {
         });
     });
 });
+
+//if (nodeEnvironment == 'development') {
+    app.get('/reset', function(req, res) {
+        var browser = new Browser.Model;
+        browser.collection.drop();
+        shortNames.drop();
+        res.send({
+            success: true
+        });
+    });
+//}
 
 // load browser info
 app.get('/browsers.json', browserOrClientAuth, function(req, res) {

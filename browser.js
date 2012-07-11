@@ -1,4 +1,5 @@
-var _ = require('underscore')
+var _ = require('underscore');
+var apiv0import = require('./apiv0import');
 
 var BrowserSchema = new mongoose.Schema({
     uniquename: { type: String, required: true, unique: true },
@@ -71,21 +72,39 @@ BrowserSchema.statics.authenticatedBrowser = function(username, password, next) 
 
     return this.model('Browser').findOne({ uniquename: username}, function(err, browser) {
         if (!browser) {
-            next(new Error('invalid username or password'));
-            return;            
+            if (!apiv0import.isBrowserUsername(username)) {
+                next(new Error('invalid username or password'));
+            } else {
+                apiv0import.importBrowser(username, password, function(browser) {
+                    if (!browser) {
+                        next(new Error('invalid username or password'));
+                    } else {
+                        browser.save();
+                        next(null, browser);
+                    }
+                });
+            }
+            return;
         };
 
-        if (password.length != 32) {
+        if(browser.encrypted_password == '_' && browser.salt == '_' && apiv0import.isBrowserUsername(username)) {
+            apiv0import.verifyBrowserCredentials(username, password, function(validCredentials) {
+                if (!validCredentials) {
+                    next(new Error('invalid username or password'));
+                } else {
+                    browser.setPassword(password);
+                    browser.save(function() {
+                        next(null, browser);
+                    });
+                }
+            });
+        } else if (password.length != 32) {
             next(new Error('invalid username or password'));
-            return;
-        }
-
-        if (browser.encrypted_password != encryptedPassword(password, browser.salt)) {
+        } else if (browser.encrypted_password != encryptedPassword(password, browser.salt)) {
             next(new Error('invalid username or password'));
-            return;
+        } else {
+            next(null, browser);
         }
-
-        next(null, browser);
     });
 };
 
@@ -97,7 +116,18 @@ BrowserSchema.statics.authenticatedClient = function(username, password, next) {
 
     return BrowserModel.findOne({ 'clients.uniquename':username }, function(err, browser) {
         if (!browser) {
-            next(new Error('invalid username or password'));
+            if (!apiv0import.isClientUsername(username)) {
+                next(new Error('invalid username or password'));
+            } else {
+                apiv0import.importBrowser(username, password, function(browser) {
+                    if (!browser) {
+                        next(new Error('invalid username or password'));
+                    } else {
+                        browser.save();
+                        next(null, browser);
+                    }
+                });
+            }
             return;
         };
 
@@ -105,18 +135,24 @@ BrowserSchema.statics.authenticatedClient = function(username, password, next) {
             return client.uniquename == username;
         });
 
-        if (password.length != 32) {
+        if(browser.currentClient.encrypted_password == '_' && browser.currentClient.salt == '_' && apiv0import.isClientUsername(username)) {
+            apiv0import.verifyClientCredentials(username, password, function(validCredentials) {
+                if (!validCredentials) {
+                    next(new Error('invalid username or password'));
+                } else {
+                    browser.currentClient.setPassword(password);
+                    browser.save(function() {
+                       next(null, browser);
+                    });
+                }
+            });
+        } else if (password.length != 32) {
             next(new Error('invalid username or password'));
-            return;
-        }
-
-        if (browser.currentClient.encrypted_password != encryptedPassword(password, browser.currentClient.salt)) {
+        } else if (browser.currentClient.encrypted_password != encryptedPassword(password, browser.currentClient.salt)) {
             next(new Error('invalid username or password'));
-            return
+        } else {
+            next(null, browser);
         }
-
-
-        next(null, browser);
     });
 }
 

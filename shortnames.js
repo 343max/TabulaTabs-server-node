@@ -38,6 +38,10 @@ module.exports.shortNames = function(identifier, mongoogse) {
                 if (err) throw err;
                 next(forNumber(doc.next));
             });
+        },
+        drop: function() {
+            var shortName = new Model();
+            shortName.collection.drop();
         }
     }
 
