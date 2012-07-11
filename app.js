@@ -103,7 +103,7 @@ app.post('/browsers.json', function(req, res) {
     });
 });
 
-//if (nodeEnvironment == 'development') {
+if (nodeEnvironment == 'development') {
     app.get('/reset', function(req, res) {
         var browser = new Browser.Model;
         browser.collection.drop();
@@ -112,7 +112,7 @@ app.post('/browsers.json', function(req, res) {
             success: true
         });
     });
-//}
+}
 
 // load browser info
 app.get('/browsers.json', browserOrClientAuth, function(req, res) {
