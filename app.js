@@ -192,7 +192,7 @@ app.get('/browsers/clients.json', browserAuth, function(req, res) {
 app.delete('/browsers/clients/:clientId.json', browserAuth, function(req, res) {
     var browser = req.remoteUser;
 
-    var client = browser.clientWithUniquename(req.params.clientId);
+    var client = browser.client(req.params.clientId);
 
     if(!client) {
         throw new Error('client does not exists');

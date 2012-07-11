@@ -1,3 +1,5 @@
+var _ = require('underscore')
+
 var BrowserSchema = new mongoose.Schema({
     uniquename: { type: String, required: true, unique: true },
     ic: { type: String, required: true},
@@ -49,7 +51,7 @@ BrowserSchema.methods.setPassword = function(password) {
     this.encrypted_password = encryptedPassword(password, this.salt);
 }
 
-BrowserSchema.methods.clientWithUniquename = function(uniquename) {
+BrowserSchema.methods.client = function(uniquename) {
     return _.find(this.clients, function(client) {
        return client.uniquename == uniquename;
     });
