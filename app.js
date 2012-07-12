@@ -10,6 +10,7 @@ nodeEnvironment = process.env.NODE_ENV || 'development';
 
 mongoose.connect('mongodb://localhost/tabulatabs');
 app = express.createServer().listen(4242);
+var io = require('socket.io').listen(app);
 
 app.configure(function() {
     app.use(express.logger());
@@ -36,6 +37,7 @@ shortNames = require('./shortnames').shortNames('usernames', mongoose);
 Tab = require('./tab');
 Client = require('./client');
 Browser = require('./browser');
+var notifications = require('./notifications').init(io);
 
 /*
 express.basicAuth has problems with base64 encoded strings of some lengths.
@@ -191,6 +193,8 @@ app.put('/browsers/clients/claim.json', clientAuth, function(req, res) {
             success: true,
             id: client.uniquename
         });
+
+        notifications.claimClient(browser, client);
     });
 });
 
@@ -200,13 +204,7 @@ app.get('/browsers/clients.json', browserAuth, function(req, res) {
 
     _.each(req.remoteUser.clients, function(client) {
         if (client.claimed) {
-            clients.push({
-                id: client.uniquename,
-                useragent: client.useragent,
-                iv: client.iv,
-                ic: client.ic,
-                accessed_at: client.accessed
-            });
+            clients.push(client.jsonObject());
         }
     });
 
@@ -230,6 +228,7 @@ app.delete('/browsers/clients/:clientId.json', browserAuth, function(req, res) {
         }
 
         res.send({ success: true });
+        notifications.clientRemoved(browser, client);
     });
 });
 
@@ -253,6 +252,7 @@ var postTabs = function(req, res) {
         }
 
         res.send({ success: true });
+        notifications.tabsReplaced(browser);
     });
 };
 
@@ -264,19 +264,18 @@ app.get('/browsers/tabs.json', clientAuth, function(req, res) {
     var browser = req.remoteUser;
 
     res.send(_.map(browser.tabs, function(tab) {
-        return {
-            identifier: tab.identifier,
-            iv: tab.iv,
-            ic: tab.ic
-        };
+        return tab.jsonObject();
     }));
 
-    browser.currentClient.updateAccessTime();
+    if (browser.currentClient) {
+        browser.currentClient.updateAccessTime();
+    }
 });
 
 // update some tabs
 app.put('/browsers/tabs/update', browserAuth, function(req, res) {
     var browser = req.remoteUser;
+    var tabs = [];
 
     _.each(req.body, function(update) {
         var tab = browser.tabWithIdentifier(update.identifier);
@@ -285,6 +284,8 @@ app.put('/browsers/tabs/update', browserAuth, function(req, res) {
             tab.iv = update.iv;
             tab.ic = update.ic;
         }
+
+        tabs.push(tab);
     });
 
     browser.save(function(err) {
@@ -293,5 +294,7 @@ app.put('/browsers/tabs/update', browserAuth, function(req, res) {
         }
 
         res.send({ success: true });
+        notifications.tabsUpdated(browser, tabs);
     });
 });
+

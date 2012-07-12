@@ -27,6 +27,16 @@ ClientSchema.methods.updateAccessTime = function() {
     this.accessed = Date.now();
 }
 
+ClientSchema.methods.jsonObject = function() {
+    return {
+        id: this.uniquename,
+        useragent: this.useragent,
+        iv: this.iv,
+        ic: this.ic,
+        accessed_at: this.accessed
+    };
+}
+
 ClientSchema.statics.validate = function(client, next) {
     if (!next) {
         next = function () {};

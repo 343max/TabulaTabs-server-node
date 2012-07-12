@@ -4,6 +4,14 @@ var TabSchema = new mongoose.Schema({
     ic: {type: String, required: true}
 });
 
+TabSchema.methods.jsonObject = function() {
+    return {
+        identifier: this.identifier,
+        iv: this.iv,
+        ic: this.ic
+    };
+}
+
 module.exports.Schema = TabSchema;
 
 var TabModel = mongoose.model('Tabs', TabSchema);
