@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<script src="/socket.io/socket.io.js"></script>
+	<script>
+
+var notification = io.connect(document.location.origin + '/notifications');
+
+notification.on('tab', function(data) {
+	console.dir(data);
+});
+
+notification.on('connect', function() {
+	notification.emit('authorize', {
+		username: 'max',
+		password: 'pass123'
+	}, function(result) {
+		console.dir(result);
+	});
+})
+
+
+	</script>
+
+</head>
+<body>
+
+
+</body>
+</html>

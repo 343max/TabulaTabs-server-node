@@ -21,6 +21,7 @@ app.configure(function() {
 });
 
 app.configure('development', function() {
+    app.use(express.static(path.join(application_root, 'public_development')));
     app.use(express.errorHandler( { dumpExceptions: true, showStack: true} ));
 })
 
