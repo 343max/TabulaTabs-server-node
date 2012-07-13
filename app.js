@@ -252,6 +252,7 @@ app.get('/browsers/tabs.json', clientAuth, function(req, res) {
 
     if (browser.currentClient) {
         browser.currentClient.updateAccessTime();
+        browser.save();
         notifications.clientSeen(browser, browser.currentClient);
     }
 });
