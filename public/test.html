@@ -1,0 +1,257 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+        <title>Tabulatabs js client test</title>
+        <link rel="stylesheet" href="http://code.jquery.com/qunit/qunit-1.2.0.css" >
+        <script src="js/base64.js"></script>
+        <script src="js/gibberish-aes.js"></script>
+        <script src="js/jquery-1.7.2.min.js"></script>
+        <script src="js/webtoolkit.sha1.js"></script>
+        <script src="js/findMetaInPageTitle.js"></script>
+        <script src="js/tabulatabs-client.js"></script>
+        <script src="js/tabulatabs-encryption.js"></script>
+        <script src="js/tabulatabs-browser.js"></script>
+        <script src="js/qunit-1.2.0.js"></script>
+    </head>
+    <body>
+
+
+  <h1 id="qunit-header">Tabulatabs JS Client</h1>
+  <h2 id="qunit-banner"></h2>
+  <ol id="qunit-tests"></ol>
+<script>
+
+tabulatabsServerPath = document.location.origin + '/';
+
+test("cross domain connection, server responding", function() {
+    stop(3);
+
+    $.get(tabulatabsServerPath + 'hello/hello.json', function(r) {
+        equal(r.greeted, 'Hello World!', 'get response test to json controller');
+        start();
+    });
+
+    $.ajax(tabulatabsServerPath + 'hello/hello_secure.json', {
+        type: 'GET',
+        username: 'Tester',
+        password: 'greets',
+        beforeSend: function(jqXHR, settings) {
+            if (settings.username) {
+                jqXHR.setRequestHeader('Authorization', 'Basic ' + base64_encode(settings.username + ':' + settings.password) + '==');
+            }
+        },
+        success: function(r) {
+            equal(r.greeted, 'Hello Tester!', 'authentification is working');
+            start();
+        }
+    });
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('get', tabulatabsServerPath + 'hello/hello_secure.json');
+    xhr.setRequestHeader('Authorization', 'Basic ' + base64_encode('Tester' + ':' + 'greets') + '==');
+    xhr.onreadystatechange = function(e){
+        if(xhr.readyState != 4)
+            return;
+
+        var o = JSON.parse(xhr.responseText);
+        equal(o.greeted, 'Hello Tester!', 'custom XHR request working');
+        start();
+    };
+    xhr.send(null);
+});
+
+test("encryption", function() {
+    var encryption = new TabulatabsEncryption();
+    encryption.key = encryption.generateHexKey();
+    equal(encryption.decrypt(encryption.encrypt('hello')), 'hello', "Encryption is working");
+});
+
+var encryption = new TabulatabsEncryption();
+encryption.key = encryption.generateHexKey();
+
+function testBrowser() {
+    var browser = new TabulatabsBrowser(encryption);
+    browser.useragent = 'Test - JavaScript Test Browser - ' + navigator.userAgent;
+    browser.label = 'Unit Testing Fake Browser';
+    browser.description = 'If you can see this there is some kind of bug';
+    browser.iconURL = 'chrome.png';
+    return browser;
+}
+
+test("browser", function() {
+    stop();
+
+    var browser = testBrowser();
+
+    var password = browser.encryption.generatePassword();
+    browser.register(password, function(registration_result) {
+        ok(browser.username, 'Registered a username');
+        ok(browser.id != 0, 'got an id');
+
+        var loadedBrowser = new TabulatabsBrowser(encryption);
+
+        loadedBrowser.username = browser.username;
+        loadedBrowser.password = browser.password;
+
+        loadedBrowser.load(function(loading_result) {
+            equal(browser.useragent, loadedBrowser.useragent, 'Useragent correctly saved');
+            equal(browser.label, loadedBrowser.label, 'Label correctly saved');
+            equal(browser.description, loadedBrowser.description, 'Description correctly saved');
+            equal(browser.iconURL, loadedBrowser.iconURL, 'iconURL saved correctly');
+            equal(browser.id, loadedBrowser.id, 'id returned correctly');
+
+            loadedBrowser.label = 'new label';
+            loadedBrowser.description = 'new description';
+            loadedBrowser.iconURL = 'differenticon.png';
+            loadedBrowser.update(function(result) {
+                var reloadedBrowser = new TabulatabsBrowser(encryption);
+                reloadedBrowser.username = browser.username;
+                reloadedBrowser.password = browser.password;
+
+                reloadedBrowser.load(function(reloading_result) {
+                    equal(reloadedBrowser.label, loadedBrowser.label, 'Label correctly saved');
+                    equal(reloadedBrowser.description, loadedBrowser.description, 'Description correctly saved');
+                    equal(reloadedBrowser.iconURL, loadedBrowser.iconURL, 'iconURL saved correctly');
+
+                    start();
+                });
+            })
+        });
+    });
+});
+
+test('clients / tabs', function() {
+    stop();
+    
+    var browser = testBrowser();
+
+    var password = browser.encryption.generatePassword();
+    var claimingClientPassword = browser.encryption.generatePassword();
+    var permanentClientPassword = browser.encryption.generatePassword();
+
+    browser.register(password, function(registration_result) {
+        var client = new TabulatabsClient(encryption);
+        var unclaimedClient = new TabulatabsClient(encryption);
+
+        console.dir({
+            registeredBrowser: {
+                username: browser.username,
+                password: password,
+                key: browser.encryption.hexKey()
+            }
+        });
+
+        unclaimedClient.createWithBrowser(browser, claimingClientPassword, function(registration_result) {
+            ok(unclaimedClient.username != '', 'Successfully registered a client - will never claim it');
+
+            client.createWithBrowser(browser, claimingClientPassword, function () {
+                ok(client.username != '', 'Successfully registered a client - will claim it');
+                client.useragent = 'Unit Test Client';
+                client.label = 'Fake Unit Test Client';
+                client.description = 'If you can see this there was some kind of bug';
+                client.iconURL = 'iphone.png';
+
+                client.claim(claimingClientPassword, permanentClientPassword, function(claiming_result) {
+                    ok(client.password != '', 'Successfully claimed a client');
+                    ok(client.id != '', 'returned the id of the just claimed client');
+
+                    console.dir({
+                        claimedClient: {
+                            username: client.username,
+                            password: permanentClientPassword
+                        }
+                    });
+
+                    browser.loadClients(function(loadClientsResult) {
+                        equal(browser.clients.length, 1, 'returns exactly one registered client');
+                        
+                        equal(client.useragent, browser.clients[0].useragent, 'Useragent correctly saved');
+                        equal(client.label, browser.clients[0].label, 'Label correctly saved');
+                        equal(client.description, browser.clients[0].description, 'Description correctly saved');
+                        equal(client.iconURL, browser.clients[0].iconURL, 'iconURL saved correctly');
+                        equal(client.id, browser.clients[0].id, 'id saved correctly');
+                        ok(browser.clients[0].accessedAt != null, 'accessed_at is not null');
+                        equal(browser.clients[0].accessedAt.getHours(), (new Date()).getHours(), 'accessedAt date returned correctly');
+
+                        var tab1 = new TabulatabsTab({identifier: 'id1', title: 'title', URL: 'http://tabulatabs.com/', selected: true, favIconURL: 'favicon.ico', windowId: 'wid2', windowFocused: true, index: 3, colorPalette: ['red', 'green', 'blue']});
+                        var tab2 = new TabulatabsTab({identifier: 'id2', title: 'title2', URL: 'http://tabulatabs.com/2', selected: true, favIconURL: 'favicon2.ico', windowId: 'wid1', windowFocused: false, index: 4, colorPalette: ['red', 'green', 'blue']});
+                        var tab3 = new TabulatabsTab({identifier: 'id3', title: 'title3', URL: 'http://tabulatabs.com/3', selected: true, favIconURL: 'favicon3.ico', windowId: 'wid1', windowFocused: false, index: 5, colorPalette: ['red', 'green', 'blue']});
+                        var tab4 = new TabulatabsTab({identifier: 'id4', title: 'title4', URL: 'http://tabulatabs.com/4', selected: true, favIconURL: 'favicon4.ico', windowId: 'wid1', windowFocused: false, index: 6, colorPalette: ['red', 'green', 'blue']});
+                        
+                        var tabs = [tab1, tab2, tab3, tab4];
+
+                        browser.saveTabs(tabs, function(savingTabsResult) {
+                            equal(savingTabsResult.success, true, 'Tabs saved successfully');
+
+                            client.loadTabs(function() {
+                                equal(client.tabs.length, 4, 'correct number of tabs loaded');
+
+                                for (var i = 0; i < tabs.length; i++) {
+                                    equal(client.tabs[i].identifier, tabs[i].identifier, 'save identifier correctly');
+                                    equal(client.tabs[i].title, tabs[i].title, 'save title correctly');
+                                    equal(client.tabs[i].url, tabs[i].url, 'save url correctly');
+                                    equal(client.tabs[i].selected, tabs[i].selected, 'save selected correctly');
+                                    equal(client.tabs[i].favIconURL, tabs[i].favIconURL, 'save favIconURL correctly');
+                                    equal(client.tabs[i].windowId, tabs[i].windowId, 'save windowId correctly');
+                                    equal(client.tabs[i].windowFocused, tabs[i].windowFocused, 'save windowFocused correctly');
+                                    equal(client.tabs[i].index, tabs[i].index, 'save index correctly');
+                                    equal(client.tabs[i].colorPalette.length, tabs[i].colorPalette.length, 'save pageColors correctly');
+                                }
+
+                                tab2.title = 'title2a';
+                                tab2.URL = 'http://tabulatabs.com/2a';
+                                tab2.selected = false;
+                                tab2.favIconURL = 'favicon2a.ico';
+                                tab2.windowId = 'window2a';
+                                tab2.windowFocused = true;
+
+                                tab3.title = 'title3a';
+                                tab3.URL = 'http://tabulatabs.com/3a';
+                                tab3.selected = false;
+                                tab3.favIconURL = 'favicon3a.ico';
+                                tab3.windowId = 'window3a';
+                                tab3.windowFocused = true;
+
+                                start();return;
+
+                                browser.updateTabs(tabs, function(updatingTabsResult) {
+                                    client.loadTabs(function() {
+                                        equal(client.tabs.length, 4, 'correct number of tabs loaded');
+
+                                        for (var i = 0; i < tabs.length; i++) {
+                                            equal(client.tabs[i].identifier, tabs[i].identifier, 'save identifier correctly');
+                                            equal(client.tabs[i].title, tabs[i].title, 'save title correctly');
+                                            equal(client.tabs[i].url, tabs[i].url, 'save url correctly');
+                                            equal(client.tabs[i].selected, tabs[i].selected, 'save selected correctly');
+                                            equal(client.tabs[i].favIconURL, tabs[i].favIconURL, 'save favIconURL correctly');
+                                            equal(client.tabs[i].windowId, tabs[i].windowId, 'save windowId correctly');
+                                            equal(client.tabs[i].windowFocused, tabs[i].windowFocused, 'save windowFocused correctly');
+                                            equal(client.tabs[i].index, tabs[i].index, 'save index correctly');
+                                            equal(client.tabs[i].colorPalette.length, tabs[i].colorPalette.length, 'save pageColors correctly');
+                                        }
+
+                                        browser.destroyClient(client, function(destroyClientResult) {
+                                            ok(destroyClientResult.success, 'got invalid response');
+
+                                            browser.loadClients(function(loadClientsResult) {
+                                                equal(browser.clients.length, 0, 'client was not destroyed');
+                                                start();
+                                            });
+                                        });
+                                    });
+                                });
+                            });
+
+                        });
+                    });
+                });
+            })
+        })
+    });
+});
+
+</script>
+
+    </body>
+</html>
