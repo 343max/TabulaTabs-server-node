@@ -41,29 +41,18 @@ Client = require('./client');
 Browser = require('./browser');
 var notifications = require('./notifications').init(io);
 
-/*
-express.basicAuth has problems with base64 encoded strings of some lengths.
-fixAuth works around this problem in a dirty way.
- */
-function fixAuth(auth) {
-    return function(req, res, next) {
-        req.headers.authorization += '======';
-        return auth(req, res, next);
-    }
-}
-
-browserAuth = fixAuth(express.basicAuth(function(username, password, next) {
+browserAuth = express.basicAuth(function(username, password, next) {
     BrowserModel.authenticatedBrowser(username, password, next);
-}));
+});
 
 
-clientAuth = fixAuth(express.basicAuth(function(username, password, next) {
+clientAuth = express.basicAuth(function(username, password, next) {
     BrowserModel.authenticatedClient(username, password, next);
-}));
+});
 
-browserOrClientAuth = fixAuth(express.basicAuth(function(username, password, next) {
+browserOrClientAuth = express.basicAuth(function(username, password, next) {
     BrowserModel.authenticatedBrowserOrClient(username, password, next);
-}));
+});
 
 app.get('/reset', function(req, res) {
     var browser = new Browser.Model;
