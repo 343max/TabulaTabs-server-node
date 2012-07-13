@@ -25,30 +25,30 @@ module.exports.init = function(io) {
             var tabs = _.map(browser.tabs, function(tab) {
                 return tab.jsonObject();
             });
-            this.notify(browser.uniquename, 'tabs', 'tabsReplaced', tabs);
+            this.notify(browser.uniquename, 'tabs', 'tabsReplaced', { tabs: tabs });
         },
 
         tabsUpdated: function(browser, tabs) {
             tabs = _.map(browser.tabs, function(tab) {
                 return tab.jsonObject();
             });
-            this.notify(browser.uniquename, 'tabs', 'tabsUpdated', tabs);
+            this.notify(browser.uniquename, 'tabs', 'tabsUpdated', { tabs: tabs });
         },
 
         claimClient: function(browser, client) {
-            this.notify(browser.uniquename, 'clients', 'claimClient', client.jsonObject());
+            this.notify(browser.uniquename, 'clients', 'claimClient', { client: client.jsonObject() });
         },
 
         clientSeen: function(browser, client) {
-            this.notify(browser.uniquename, 'clients', 'clientSeen', client.jsonObject());
+            this.notify(browser.uniquename, 'clients', 'clientSeen', { client: client.jsonObject() });
         },
 
         clientRemoved: function(browser, client) {
-            this.notify(browser.uniquename, 'clients', 'clientRemoved', client.jsonObject());
+            this.notify(browser.uniquename, 'clients', 'clientRemoved', { client: client.jsonObject() });
         },
 
         browserUpdated: function(browser) {
-            this.notify(browser.uniquename, 'browsers', 'browserUpdated', browser.jsonObject());
+            this.notify(browser.uniquename, 'browsers', 'browserUpdated', { browser: browser.jsonObject() });
         }
     }
 }
