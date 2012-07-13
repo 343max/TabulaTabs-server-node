@@ -51,35 +51,32 @@ function fixAuth(auth) {
 }
 
 browserAuth = fixAuth(express.basicAuth(function(username, password, next) {
-    BrowserModel.authenticatedBrowser(username, password, function(err, browser) {
-        next(err, browser);
-    });
+    BrowserModel.authenticatedBrowser(username, password, next);
 }));
 
 
 clientAuth = fixAuth(express.basicAuth(function(username, password, next) {
-    BrowserModel.authenticatedClient(username, password, function(err, browser) {
-        next(err, browser);
-    });
+    BrowserModel.authenticatedClient(username, password, next);
 }));
 
 browserOrClientAuth = fixAuth(express.basicAuth(function(username, password, next) {
-    BrowserModel.authenticatedBrowser(username, password, function(err, browser) {
-       if (browser) {
-           next(err, browser);
-       } else {
-           BrowserModel.authenticatedClient(username, password, function(err, browser) {
-               if (err) {
-                   next(err);
-               } else {
-                   next(null, browser);
-               }
-           });
-       }
-    });
+    BrowserModel.authenticatedBrowserOrClient(username, password, next);
 }));
 
-
+app.get('/reset', function(req, res) {
+    var browser = new Browser.Model;
+    if (nodeEnvironment == 'development') {
+        browser.collection.drop();
+        shortNames.drop();
+        res.send({
+            success: true
+        });
+    } else {
+        res.send({
+            success: false
+        });
+    }
+});
 
 // create browser
 app.post('/browsers.json', function(req, res) {
@@ -105,30 +102,9 @@ app.post('/browsers.json', function(req, res) {
     });
 });
 
-app.get('/reset', function(req, res) {
-    var browser = new Browser.Model;
-    if (nodeEnvironment == 'development') {
-        browser.collection.drop();
-        shortNames.drop();
-        res.send({
-            success: true
-        });
-    } else {
-        res.send({
-            success: false
-        });
-    }
-});
-
-
 // load browser info
 app.get('/browsers.json', browserOrClientAuth, function(req, res) {
-    res.send({
-        id: req.remoteUser._id,
-        useragent: req.remoteUser.useragent,
-        iv: req.remoteUser.iv,
-        ic: req.remoteUser.ic
-    });
+    res.send(req.remoteUser.jsonObject());
 });
 
 // modify existing browser
@@ -142,6 +118,7 @@ app.post('/browsers/update.json', browserAuth, function(req, res) {
         }
 
         res.send({ success: true });
+        notifications.browserUpdated(browser);
     });
 });
 
@@ -212,13 +189,17 @@ app.get('/browsers/clients.json', browserAuth, function(req, res) {
 });
 
 // delete a client
-app.delete('/browsers/clients/:clientId.json', browserAuth, function(req, res) {
+app.delete('/browsers/clients/:clientId.json', browserOrClientAuth, function(req, res) {
     var browser = req.remoteUser;
 
     var client = browser.client(req.params.clientId);
 
     if(!client) {
         throw new Error('client does not exists');
+    }
+
+    if (browser.currentClient && (browser.currentClient.uniquename != client.uniquename)) {
+        throw new Error('not permitted');
     }
 
     client.remove();
@@ -269,6 +250,7 @@ app.get('/browsers/tabs.json', clientAuth, function(req, res) {
 
     if (browser.currentClient) {
         browser.currentClient.updateAccessTime();
+        notifications.clientSeen(browser, browser.currentClient);
     }
 });
 

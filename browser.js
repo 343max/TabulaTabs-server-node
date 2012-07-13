@@ -64,8 +64,21 @@ BrowserSchema.methods.tabWithIdentifier = function(identifier) {
     });
 }
 
+BrowserSchema.methods.jsonObject = function() {
+    return {
+        id: this._id,
+        useragent: this.useragent,
+        iv: this.iv,
+        ic: this.ic
+    };
+}
+
+function validBrowserUsername(username) {
+    return username.match(/^(b_|B__)/);
+}
+
 BrowserSchema.statics.authenticatedBrowser = function(username, password, next) {
-    if (!username.match(/^(b_|B__)/)) {
+    if (!validBrowserUsername(username)) {
         next(new Error('invalid username'));
         return;
     };
@@ -108,8 +121,12 @@ BrowserSchema.statics.authenticatedBrowser = function(username, password, next) 
     });
 };
 
+function validClientUsername(username) {
+    return username.match(/^(c_|C__)/);
+}
+
 BrowserSchema.statics.authenticatedClient = function(username, password, next) {
-    if (!username.match(/^(c_|C__)/)) {
+    if (!validClientUsername(username)) {
         next(new Error('invalid username'));
         return;
     };
@@ -154,6 +171,14 @@ BrowserSchema.statics.authenticatedClient = function(username, password, next) {
             next(null, browser);
         }
     });
+}
+
+BrowserSchema.statics.authenticatedBrowserOrClient = function(username, password, next) {
+    if (validBrowserUsername(username)) {
+        this.authenticatedBrowser(username, password, next);
+    } else {
+        this.authenticatedClient(username, password, next);
+    }
 }
 
 module.exports.Schema = BrowserSchema;
