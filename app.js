@@ -41,18 +41,31 @@ Client = require('./client');
 Browser = require('./browser');
 var notifications = require('./notifications').init(io);
 
-browserAuth = express.basicAuth(function(username, password, next) {
+function fixAuth(auth) {
+    return function(req, res, next) {
+        var encodedAuth = req.headers.authorization.replace(/^Basic\s+/, '');
+        var decodedAuth = new Buffer(encodedAuth, 'base64').toString('ascii');
+
+        if (decodedAuth.replace(/[^:]+:/,'').length != 32) {
+            req.headers.authorization = req.headers.authorization.replace(/..$/, '');
+        }
+
+        return auth(req, res, next);
+    };
+}
+
+browserAuth = fixAuth(express.basicAuth(function(username, password, next) {
     BrowserModel.authenticatedBrowser(username, password, next);
-});
+}));
 
 
-clientAuth = express.basicAuth(function(username, password, next) {
+clientAuth = fixAuth(express.basicAuth(function(username, password, next) {
     BrowserModel.authenticatedClient(username, password, next);
-});
+}));
 
-browserOrClientAuth = express.basicAuth(function(username, password, next) {
+browserOrClientAuth = fixAuth(express.basicAuth(function(username, password, next) {
     BrowserModel.authenticatedBrowserOrClient(username, password, next);
-});
+}));
 
 app.get('/reset', function(req, res) {
     var browser = new Browser.Model;
