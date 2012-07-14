@@ -43,6 +43,23 @@ function encryptedPassword(password, salt) {
 
 module.exports.encryptedPassword = encryptedPassword;
 
+BrowserSchema.methods.streamingEnabledUntil = function() {
+    var streamingEnabledClient = _.find(this.clients, function(client) {
+        return client.getVersion() >= 2;
+    });
+
+    if (streamingEnabledClient == null) {
+        return null;
+    } else {
+        var lastSeenClient = _.max(this.clients, function(client) {
+           return client.accessed
+        });
+        var timeout = new Date();
+        timeout.setTime(lastSeenClient.accessed.getTime() + 3600 * 24 * 7 * 1000);
+        return timeout;
+    }
+}
+
 BrowserSchema.methods.setPassword = function(password) {
     var crypto = require('crypto');
     var salt = crypto.createHash('sha256');
@@ -66,10 +83,12 @@ BrowserSchema.methods.tabWithIdentifier = function(identifier) {
 
 BrowserSchema.methods.jsonObject = function() {
     return {
+        username: this.uniquename,
         id: this._id,
         useragent: this.useragent,
         iv: this.iv,
-        ic: this.ic
+        ic: this.ic,
+        streaming_enabled_until: this.streamingEnabledUntil()
     };
 }
 

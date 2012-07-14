@@ -132,15 +132,10 @@ test('clients / tabs', function() {
 
     browser.register(password, function(registration_result) {
         var client = new TabulatabsClient(encryption);
+				client.version = 1;
         var unclaimedClient = new TabulatabsClient(encryption);
-
-        console.dir({
-            registeredBrowser: {
-                username: browser.username,
-                password: password,
-                key: browser.encryption.hexKey()
-            }
-        });
+				unclaimedClient.version = 1;
+				equal(false, browser.streamingEnabled(), 'Steaming is disabled');
 
         unclaimedClient.createWithBrowser(browser, claimingClientPassword, function(registration_result) {
             ok(unclaimedClient.username != '', 'Successfully registered a client - will never claim it');
@@ -156,13 +151,6 @@ test('clients / tabs', function() {
                     ok(client.password != '', 'Successfully claimed a client');
                     ok(client.id != '', 'returned the id of the just claimed client');
 
-                    console.dir({
-                        claimedClient: {
-                            username: client.username,
-                            password: permanentClientPassword
-                        }
-                    });
-
                     browser.loadClients(function(loadClientsResult) {
                         equal(browser.clients.length, 1, 'returns exactly one registered client');
                         
@@ -171,6 +159,7 @@ test('clients / tabs', function() {
                         equal(client.description, browser.clients[0].description, 'Description correctly saved');
                         equal(client.iconURL, browser.clients[0].iconURL, 'iconURL saved correctly');
                         equal(client.id, browser.clients[0].id, 'id saved correctly');
+												equal(browser.clients[0].version, 1, 'client version returned correctly');
                         ok(browser.clients[0].accessedAt != null, 'accessed_at is not null');
                         equal(browser.clients[0].accessedAt.getHours(), (new Date()).getHours(), 'accessedAt date returned correctly');
 
@@ -183,9 +172,11 @@ test('clients / tabs', function() {
 
                         browser.saveTabs(tabs, function(savingTabsResult) {
                             equal(savingTabsResult.success, true, 'Tabs saved successfully');
+														equal(false, browser.streamingEnabled(), 'Steaming is disabled');
 
-                            client.loadTabs(function() {
-                                equal(client.tabs.length, 4, 'correct number of tabs loaded');
+														client.version = 2;
+														client.loadTabs(function() {
+														equal(client.tabs.length, 4, 'correct number of tabs loaded');
 
                                 for (var i = 0; i < tabs.length; i++) {
                                     equal(client.tabs[i].identifier, tabs[i].identifier, 'save identifier correctly');
@@ -213,10 +204,11 @@ test('clients / tabs', function() {
                                 tab3.windowId = 'window3a';
                                 tab3.windowFocused = true;
 
-                                start();return;
-
                                 browser.updateTabs(tabs, function(updatingTabsResult) {
-                                    client.loadTabs(function() {
+																	console.dir({
+																		updatedTabs: browser.streamingEnabledUntil
+																	});
+																	client.loadTabs(function() {
                                         equal(client.tabs.length, 4, 'correct number of tabs loaded');
 
                                         for (var i = 0; i < tabs.length; i++) {

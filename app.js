@@ -85,10 +85,9 @@ app.post('/browsers.json', function(req, res) {
                 throw err;
             }
 
-            res.send({
-                username: browser.uniquename,
-                id: browser.id
-            });
+            var result = browser.jsonObject();
+            result.id = browser._id;
+            res.send(result);
         });
     });
 });
@@ -223,13 +222,16 @@ var postTabs = function(req, res) {
             throw err;
         }
 
-        res.send({ success: true });
+        res.send({
+            success: true,
+            streaming_enabled_until: browser.streamingEnabledUntil()
+        });
         notifications.tabsReplaced(browser);
     });
 };
-
 app.post('/browsers/tabs/', browserAuth, postTabs);
 app.post('/browsers/tabs.json', browserAuth, postTabs);
+
 
 // get all tabs
 app.get('/browsers/tabs.json', clientAuth, function(req, res) {
@@ -240,11 +242,15 @@ app.get('/browsers/tabs.json', clientAuth, function(req, res) {
     }));
 
     if (browser.currentClient) {
+        if (req.query.client_version) {
+            browser.currentClient.version = req.query.client_version;
+        }
         browser.currentClient.updateAccessTime();
         browser.save();
         notifications.clientSeen(browser, browser.currentClient);
     }
 });
+
 
 // update some tabs
 app.put('/browsers/tabs/update', browserAuth, function(req, res) {
@@ -267,7 +273,10 @@ app.put('/browsers/tabs/update', browserAuth, function(req, res) {
             throw err;
         }
 
-        res.send({ success: true });
+        res.send({
+            success: true,
+            streaming_enabled_until: browser.streamingEnabledUntil()
+        });
         notifications.tabsUpdated(browser, tabs);
     });
 });

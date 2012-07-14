@@ -7,7 +7,8 @@ var ClientSchema = new mongoose.Schema({
     useragent: { type: String },
     modified: { type: Date, default: Date.now },
     accessed: { type: Date, default: Date.now },
-    claimed: { type: Boolean, default: false }
+    claimed: { type: Boolean, default: false },
+    version: { type: Number, default: 0 }
 });
 
 ClientSchema.pre('save', function(next) {
@@ -27,10 +28,15 @@ ClientSchema.methods.updateAccessTime = function() {
     this.accessed = Date.now();
 }
 
+ClientSchema.methods.getVersion = function() {
+    return Math.max(this.version, 1);
+}
+
 ClientSchema.methods.jsonObject = function() {
     return {
         id: this.uniquename,
         useragent: this.useragent,
+        version: this.getVersion(),
         iv: this.iv,
         ic: this.ic,
         accessed_at: this.accessed
