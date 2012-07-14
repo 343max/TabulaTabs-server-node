@@ -205,9 +205,6 @@ test('clients / tabs', function() {
                                 tab3.windowFocused = true;
 
                                 browser.updateTabs(tabs, function(updatingTabsResult) {
-																	console.dir({
-																		updatedTabs: browser.streamingEnabledUntil
-																	});
 																	client.loadTabs(function() {
                                         equal(client.tabs.length, 4, 'correct number of tabs loaded');
 
