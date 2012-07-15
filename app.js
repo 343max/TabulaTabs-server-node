@@ -43,11 +43,13 @@ var notifications = require('./notifications').init(io);
 
 function fixAuth(auth) {
     return function(req, res, next) {
-        var encodedAuth = req.headers.authorization.replace(/^Basic\s+/, '');
-        var decodedAuth = new Buffer(encodedAuth, 'base64').toString('ascii');
+        if (req.headers.authorization) {
+            var encodedAuth = req.headers.authorization.replace(/^Basic\s+/, '');
+            var decodedAuth = new Buffer(encodedAuth, 'base64').toString('ascii');
 
-        if (decodedAuth.replace(/[^:]+:/,'').length != 32) {
-            req.headers.authorization = req.headers.authorization.replace(/..$/, '');
+            if (decodedAuth.replace(/[^:]+:/,'').length != 32) {
+                req.headers.authorization = req.headers.authorization.replace(/..$/, '');
+            }
         }
 
         return auth(req, res, next);
