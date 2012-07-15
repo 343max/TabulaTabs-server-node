@@ -41,6 +41,7 @@ Client = require('./client');
 Browser = require('./browser');
 var notifications = require('./notifications').init(io);
 
+// another dirty hack to fix the broken base64 encoding in older TT versions
 function fixAuth(auth) {
     return function(req, res, next) {
         if (req.headers.authorization) {
