@@ -1,3 +1,5 @@
+console.log('starting');
+
 var application_root = __dirname,
     path = require("path");
 
