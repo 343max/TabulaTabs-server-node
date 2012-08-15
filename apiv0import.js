@@ -1,4 +1,4 @@
-var apiv0url = 'https://apiv0.tabulatabs.com';
+var apiv0url = 'https://tabulatabs.heroku.com';
 var _ = require('underscore');
 var https = require('https');
 var url = require('url');
