@@ -1,3 +1,5 @@
+var _ = require('underscore');
+
 var BrowserSchema = new mongoose.Schema({
     uniquename: { type: String, required: true, unique: true },
     ic: { type: String, required: true},
@@ -70,7 +72,7 @@ BrowserSchema.statics.authenticatedBrowser = function(username, password, next) 
     return this.model('Browser').findOne({ uniquename: username}, function(err, browser) {
         if (!browser) {
             next(new Error('invalid username or password'));
-            return;            
+            return;
         };
 
         if (password.length != 32) {
