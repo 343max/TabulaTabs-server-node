@@ -1,5 +1,4 @@
 var _ = require('underscore');
-var apiv0import = require('./apiv0import');
 
 var BrowserSchema = new mongoose.Schema({
     uniquename: { type: String, required: true, unique: true },
@@ -104,18 +103,7 @@ BrowserSchema.statics.authenticatedBrowser = function(username, password, next) 
 
     return this.model('Browser').findOne({ uniquename: username}, function(err, browser) {
         if (!browser) {
-            if (!apiv0import.isBrowserUsername(username)) {
-                next(new Error('invalid username or password'));
-            } else {
-                apiv0import.importBrowser(username, password, function(browser) {
-                    if (!browser) {
-                        next(new Error('invalid username or password'));
-                    } else {
-                        browser.save();
-                        next(null, browser);
-                    }
-                });
-            }
+            next(new Error('invalid username or password'));
             return;
         };
 
